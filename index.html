@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hedgehog Forest Adventure - Hardcore Mode</title>
+    <style>
+        /* General Setup */
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #2c3e50;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #ecf0f1;
+            user-select: none;
+            display: flex;
+            justify-content: center;
+        }
+
+        #game-container {
+            width: 100%;
+            max-width: 600px;
+            height: 100vh;
+            background-color: #1e272e;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+
+        /* Top Stats Bar */
+        #stats-bar {
+            background-color: #2f3640;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid #e74c3c;
+            z-index: 100;
+        }
+
+        .stat {
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        #xp-bar-container {
+            width: 100%;
+            height: 10px;
+            background-color: #7f8c8d;
+            border-radius: 5px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+
+        #xp-bar {
+            width: 0%;
+            height: 100%;
+            background-color: #e74c3c;
+            transition: width 0.2s;
+        }
+
+        /* Split Upper World Interface (Forest Left | Gear Matrix Right) */
+        #upper-world-display {
+            display: flex;
+            flex: 2.2;
+            background-color: #222f3e;
+            border-bottom: 2px solid #718093;
+        }
+
+        #forest-view {
+            flex: 1.3;
+            background: linear-gradient(to bottom, #78e08f, #38aecc);
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            transition: background 4s ease, filter 4s ease;
+            border-right: 2px solid #718093;
+        }
+
+        /* Paper-Doll Equipment UI Panel on the Right Side */
+        #gear-matrix-sidepanel {
+            flex: 0.8;
+            background-color: #2c3e50;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-around;
+            padding: 10px 5px;
+            box-sizing: border-box;
+        }
+
+        .gear-title {
+            font-size: 11px;
+            font-weight: bold;
+            color: #f1c40f;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 2px;
+        }
+
+        .paperdoll-slot {
+            width: 52px;
+            height: 52px;
+            background-color: #1e272e;
+            border: 2px dashed #718093;
+            border-radius: 6px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            position: relative;
+        }
+        
+        .paperdoll-slot.equipped {
+            border: 2px solid #3498db;
+            background-color: #353b48;
+            box-shadow: inset 0 0 5px rgba(52, 152, 219, 0.5);
+        }
+
+        .slot-label {
+            position: absolute;
+            bottom: 1px;
+            font-size: 8px;
+            color: #a4b0be;
+            text-transform: uppercase;
+        }
+
+        #night-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(15, 20, 50, 0.65);
+            pointer-events: none;
+            z-index: 40;
+            opacity: 0;
+            transition: opacity 4s ease;
+        }
+
+        .scrolling-tree {
+            position: absolute;
+            font-size: 45px;
+            bottom: 10px;
+            right: -60px;
+            animation: scrollLeft 7s linear infinite;
+            z-index: 2;
+        }
+
+        @keyframes scrollLeft {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-450px); }
+        }
+
+        /* Flipped Hedgehog Character Base Core */
+        #avatar-rig {
+            position: relative;
+            bottom: 15px;
+            z-index: 10;
+            width: 70px;
+            height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: waddle 0.6s infinite alternate ease-in-out;
+            transform: scaleX(-1); 
+        }
+
+        @keyframes waddle {
+            0% { transform: scaleX(-1) translateY(0) rotate(-3deg); }
+            100% { transform: scaleX(-1) translateY(-3px) rotate(3deg); }
+        }
+
+        .layer-base-hedgehog {
+            font-size: 60px;
+            z-index: 10;
+            line-height: 1;
+        }
+
+        /* Floating Text Effect */
+        .floating-text {
+            position: absolute;
+            font-weight: bold;
+            font-size: 15px;
+            color: #f1c40f;
+            animation: floatUp 1.2s ease-out forwards;
+            pointer-events: none;
+            z-index: 100;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+
+        @keyframes floatUp {
+            0% { transform: translateY(0); opacity: 1; }
+            100% { transform: translateY(-90px); opacity: 0; }
+        }
+
+        #active-buffs-ticker {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            z-index: 50;
+        }
+
+        .buff-badge {
+            background: rgba(0, 0, 0, 0.85);
+            padding: 3px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            color: #3498db;
+            border-left: 3px solid #3498db;
+        }
+
+        /* Main Content Panels */
+        #panel-container {
+            flex: 3;
+            background-color: #2f3640;
+            padding: 15px;
+            overflow-y: auto;
+        }
+
+        .panel { display: none; }
+        .panel.active { display: block; }
+
+        h3 {
+            margin-top: 0;
+            color: #e74c3c;
+            border-bottom: 1px solid #718093;
+            padding-bottom: 5px;
+        }
+
+        h4 { margin: 12px 0 6px 0; color: #f1c40f; }
+
+        /* Inventory Grid */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .grid-item {
+            background-color: #353b48;
+            border: 2px solid #718093;
+            border-radius: 8px;
+            aspect-ratio: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            font-size: 30px;
+            cursor: pointer;
+        }
+
+        .grid-item.selected { border-color: #f1c40f !important; }
+        
+        /* Rare item outlines */
+        .grid-item.rare-quality {
+            border: 2px solid #3498db;
+            box-shadow: 0 0 6px rgba(52, 152, 219, 0.6);
+        }
+
+        .item-count {
+            position: absolute;
+            bottom: 2px;
+            right: 5px;
+            font-size: 11px;
+            background-color: rgba(0,0,0,0.7);
+            padding: 2px 5px;
+            border-radius: 10px;
+        }
+
+        #item-action-card {
+            background-color: #222f3e;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            border: 1px solid #718093;
+            display: none;
+        }
+
+        .merge-selector {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 15px;
+        }
+
+        .merge-slot {
+            width: 65px;
+            height: 65px;
+            border: 2px dashed #718093;
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 32px;
+            cursor: pointer;
+            background-color: #222f3e;
+        }
+
+        .shop-item, .recipe-item, .manager-item, .achievement-item {
+            background-color: #353b48;
+            padding: 12px;
+            margin-bottom: 8px;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .compendium-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .compendium-cell {
+            background-color: #353b48;
+            border: 2px solid #718093;
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+            font-size: 11px;
+            position: relative;
+        }
+        .compendium-cell.rare-quality {
+            border-color: #3498db;
+        }
+
+        .compendium-cell.locked { opacity: 0.2; }
+
+        button {
+            background-color: #e74c3c;
+            border: none;
+            color: white;
+            padding: 8px 12px;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover { background-color: #c0392b; }
+        button:disabled { background-color: #7f8c8d; cursor: not-allowed; }
+        .btn-sell { background-color: #d35400; }
+        .btn-sell:hover { background-color: #e67e22; }
+        .btn-sell-all { background-color: #ba3c00; }
+        .btn-sell-all:hover { background-color: #d35400; }
+
+        #nav-bar {
+            display: flex;
+            background-color: #1e272e;
+            border-top: 3px solid #718093;
+        }
+
+        .nav-btn {
+            flex: 1;
+            padding: 10px 0;
+            text-align: center;
+            background: none;
+            border: none;
+            color: #a4b0be;
+            font-weight: bold;
+            font-size: 11px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+        }
+
+        .nav-btn-icon { font-size: 18px; }
+        .nav-btn.active { background-color: #353b48; color: #e74c3c; }
+        
+        .level-gate-badge {
+            font-size: 10px;
+            background-color: #7f8c8d;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-left: 5px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    
+    <!-- Top Stats Bar -->
+    <div id="stats-bar">
+        <div>
+            <div class="stat">Level: <span id="lbl-level">1</span> (<span id="lbl-time-txt" style="color:#3498db;">Day</span>)</div>
+            <div style="font-size:12px;">XP: <span id="lbl-xp">0</span> / <span id="lbl-next-xp">10</span></div>
+            <div id="xp-bar-container"><div id="xp-bar"></div></div>
+        </div>
+        <div>
+            <div class="stat" style="color: #f1c40f;">🪙 <span id="lbl-currency">0</span></div>
+            <div style="font-size:11px; color:#a4b0be; text-align:right;">Clicks: <span id="lbl-clicks">0</span></div>
+        </div>
+    </div>
+
+    <!-- Upper World Display Interface Split Area -->
+    <div id="upper-world-display">
+        <!-- Forest Frame View (Left) -->
+        <div id="forest-view" onclick="forage(event)">
+            <div id="night-overlay"></div>
+            <div id="active-buffs-ticker"></div>
+
+            <div id="avatar-rig">
+                <div class="layer-base-hedgehog">🦔</div>
+            </div>
+        </div>
+
+        <!-- Human Mirror Layout Paperdoll Gear Panel (Right) -->
+        <div id="gear-matrix-sidepanel">
+            <div class="gear-title">Equipment</div>
+            
+            <!-- Hat Slot -->
+            <div class="paperdoll-slot" id="p-slot-head">
+                <span id="p-icon-head"></span>
+                <span class="slot-label">Hats</span>
+            </div>
+            
+            <!-- Shirt Slot -->
+            <div class="paperdoll-slot" id="p-slot-shirt">
+                <span id="p-icon-shirt"></span>
+                <span class="slot-label">Torso</span>
+            </div>
+
+            <!-- Gloves Slot -->
+            <div class="paperdoll-slot" id="p-slot-gloves">
+                <span id="p-icon-gloves"></span>
+                <span class="slot-label">Gloves</span>
+            </div>
+            
+            <!-- Pants Slot -->
+            <div class="paperdoll-slot" id="p-slot-pants">
+                <span id="p-icon-pants"></span>
+                <span class="slot-label">Legs</span>
+            </div>
+            
+            <!-- Boots Slot -->
+            <div class="paperdoll-slot" id="p-slot-feet">
+                <span id="p-icon-feet"></span>
+                <span class="slot-label">Feet</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Menu Panels Area -->
+    <div id="panel-container">
+        
+        <!-- Backpack Panel -->
+        <div id="panel-backpack" class="panel active">
+            <h3>🎒 Backpack Inventory</h3>
+            <div id="item-action-card">
+                <strong id="card-item-name">Item Name</strong>
+                <p id="card-item-desc" style="font-size:13px; margin: 5px 0 10px 0; color:#a4b0be;"></p>
+                <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                    <button id="btn-use-item" onclick="useSelectedItem()">Use</button>
+                    <button id="btn-stage-merge" onclick="stageItemForMerge()">Stage for Merger</button>
+                    <button class="btn-sell" onclick="sellSelectedItem()">Sell 1</button>
+                    <button class="btn-sell-all" onclick="sellAllSelectedStack()">Sell All Stack</button>
+                </div>
+            </div>
+            <div id="inventory-grid" class="grid"></div>
+        </div>
+
+        <!-- Merger Panel -->
+        <div id="panel-merger" class="panel">
+            <h3>⚗️ Item Merger</h3>
+            <p style="font-size: 13px; color: #a4b0be;">Combine items together below to craft new gear!</p>
+            <div class="merge-selector">
+                <div class="merge-slot" id="slot-1" onclick="clearSlot(1)">❓</div>
+                <div style="font-size: 30px; align-self: center;">+</div>
+                <div class="merge-slot" id="slot-2" onclick="clearSlot(2)">❓</div>
+            </div>
+            <div style="text-align: center; margin-bottom: 15px;">
+                <button id="btn-merge" onclick="attemptMerge()">Combine Items</button>
+            </div>
+            <h4>Available Recipes <span style="font-size:11px; color:#a4b0be;">(Based on Level)</span></h4>
+            <div id="recipes-list"></div>
+        </div>
+
+        <!-- Shop Panel -->
+        <div id="panel-shop" class="panel">
+            <h3>🏪 Forest Shop</h3>
+            <div id="shop-dynamic-goods"></div>
+        </div>
+
+        <!-- Manager Panel -->
+        <div id="panel-manager" class="panel">
+            <h3>⚙️ Hedgehog Managers</h3>
+            <div class="manager-item">
+                <div><strong>Baby Forager 🪵</strong><div style="font-size:12px; color:#a4b0be;" id="mgr-status-1">Requires 10 Clicks</div></div>
+                <button id="btn-mgr-1" onclick="buyManager(1, 30)" disabled>Locked</button>
+            </div>
+            <div class="manager-item">
+                <div><strong>Snout Sniffer 🦡</strong><div style="font-size:12px; color:#a4b0be;" id="mgr-status-2">Requires 50 Clicks</div></div>
+                <button id="btn-mgr-2" onclick="buyManager(2, 100)" disabled>Locked</button>
+            </div>
+            <div class="manager-item">
+                <div><strong>Master Harvester 👑</strong><div style="font-size:12px; color:#a4b0be;" id="mgr-status-3">Requires 500 Clicks</div></div>
+                <button id="btn-mgr-3" onclick="buyManager(3, 500)" disabled>Locked</button>
+            </div>
+            <div class="manager-item">
+                <div><strong>Spiky General 🎖️</strong><div style="font-size:11px; color:#a4b0be;">Gathers every 2s. Grants +4.3% Critical drop multi!</div><div style="font-size:11px; color:#718093;" id="mgr-status-4">Requires 150 Clicks</div></div>
+                <button id="btn-mgr-4" onclick="buyManager(4, 350)" disabled>Locked</button>
+            </div>
+            <div class="manager-item">
+                <div><strong>Night Watchman 🦉</strong><div style="font-size:11px; color:#a4b0be;">Runs every 3s by day, but runs at DOUBLE speed (1.5s) at night!</div><div style="font-size:11px; color:#718093;" id="mgr-status-5">Requires 300 Clicks</div></div>
+                <button id="btn-mgr-5" onclick="buyManager(5, 600)" disabled>Locked</button>
+            </div>
+        </div>
+
+        <!-- Achievements Panel -->
+        <div id="panel-achievements" class="panel">
+            <h3>📖 Rare Bug Compendium</h3>
+            <div id="compendium-container" class="compendium-grid"></div>
+            <br>
+            <h3>🏆 Challenge Achievements</h3>
+            <div id="achievements-list"></div>
+        </div>
+
+    </div>
+
+    <!-- Bottom Navigation Bar Layout Labels -->
+    <div id="nav-bar">
+        <button class="nav-btn active" onclick="switchTab('backpack', this)"><span class="nav-btn-icon">🎒</span><span>Bag</span></button>
+        <button class="nav-btn" onclick="switchTab('merger', this)"><span class="nav-btn-icon">⚗️</span><span>Merge</span></button>
+        <button class="nav-btn" onclick="switchTab('shop', this)"><span class="nav-btn-icon">🏪</span><span>Shop</span></button>
+        <button class="nav-btn" onclick="switchTab('manager', this)"><span class="nav-btn-icon">⚙️</span><span>Managers</span></button>
+        <button class="nav-btn" onclick="switchTab('achievements', this)"><span class="nav-btn-icon">🏆</span><span>Awards</span></button>
+    </div>
+
+</div>
+
+<script>
+    // --- MAIN ENGINE CORE STATE ---
+    let player = {
+        level: 1, xp: 0, nextLevelXp: 10, currency: 0, totalClicks: 0,
+        purchasedManagers: { mgr1: false, mgr2: false, mgr3: false, mgr4: false, mgr5: false },
+        clothing: { head: null, feet: null, shirt: null, pants: null, gloves: null },
+        activeBuffs: {},
+        inventory: { 
+            'bug_common': 0, 'branch': 0, 'ember': 0, 'leaf': 0, 'torch': 0, 'boots': 0, 'straw_hat': 0, 'crown_royal': 0,
+            'rare_firefly': 0, 'rare_beetle': 0, 'rare_dragonfly': 0, 'rare_mantis': 0, 'rare_spider': 0,
+            'boots_heavy': 0, 'leaf_shirt': 0, 'twig_pants': 0, 'shadow_cloak': 0, 'wizard_hat': 0, 'moon_stone': 0,
+            'gardening_gloves': 0, 'titanium_gauntlets': 0,
+            'moss_cape': 0, 'spiked_crown': 0, 'thorn_bracers': 0
+        },
+        unlockedRareBugs: [],
+        unlockedAchievements: []
+    };
+
+    let timeTicks = 0;
+    let currentPhase = 'Day';
+
+    // Item definitions with level unlocks, store entries, and blue highlight tagging
+    const itemDetails = {
+        'bug_common': { name: 'Common Beetle', emoji: '🪲', desc: 'A basic crunchy snack.', type: 'mat', goldValue: 1, levelMin: 1, rare: false },
+        'leaf': { name: 'Broad Leaf', emoji: '🍃', desc: 'Soft green forest foliage.', type: 'mat', goldValue: 2, levelMin: 1, rare: false },
+        'straw_hat': { name: 'Straw Hat', emoji: '👒', desc: 'Clothing (Head). Lightweight sun shader. +1 power.', type: 'clothing', slot: 'head', goldValue: 20, levelMin: 1, rare: false },
+        'boots': { name: 'Little Boots', emoji: '🥾', desc: 'Clothing (Feet). Tiny leather pads. +1 power.', type: 'clothing', slot: 'feet', goldValue: 20, levelMin: 1, rare: false },
+        'leaf_shirt': { name: 'Foliage Vest', emoji: '👕', desc: 'Clothing (Shirt). Woven stitched leaves. +2 power.', type: 'clothing', slot: 'shirt', goldValue: 30, levelMin: 1, rare: false },
+        'gardening_gloves': { name: 'Gardening Gloves', emoji: '🧤', desc: 'Clothing (Gloves). Good for shielding thorns. +1 power.', type: 'clothing', slot: 'gloves', goldValue: 25, levelMin: 1, rare: false },
+
+        // Level 10 Unlock Tiers
+        'branch': { name: 'Dry Branch', emoji: '🪵', desc: 'Sturdy building material.', type: 'mat', goldValue: 3, levelMin: 10, rare: false },
+        'ember': { name: 'Warm Ember', emoji: '🔥', desc: 'Glowing charcoal piece.', type: 'mat', goldValue: 5, levelMin: 10, rare: false },
+        'torch': { name: 'Bright Torch', emoji: '🔦', desc: 'Consumable. Grants +2 click power for 60 seconds.', type: 'buff', goldValue: 10, levelMin: 10, rare: false },
+        'boots_heavy': { name: 'Iron Spiked Boots', emoji: '🥾', desc: 'Clothing (Feet). Heavy tracking kicks. +4 power.', type: 'clothing', slot: 'feet', goldValue: 50, levelMin: 10, rare: false },
+        'twig_pants': { name: 'Twig Trousers', emoji: '👖', desc: 'Clothing (Pants). Flexible branches. +2 power.', type: 'clothing', slot: 'pants', goldValue: 40, levelMin: 10, rare: false },
+
+        // Level 20 Unlock Tiers
+        'moon_stone': { name: 'Moon Stone', emoji: '💎', desc: 'Luminescent gemstone found at night.', type: 'mat', goldValue: 15, levelMin: 20, rare: true },
+        'wizard_hat': { name: 'Wizard Pointy Hat', emoji: '🧙', desc: 'Clothing (Head). Imbued with starlight. +5 power.', type: 'clothing', slot: 'head', goldValue: 120, levelMin: 20, rare: true },
+        'shadow_cloak': { name: 'Shadow Cloak', emoji: '🧥', desc: 'Clothing (Shirt). Midnight threads. +6 power.', type: 'clothing', slot: 'shirt', goldValue: 150, levelMin: 20, rare: true },
+        'titanium_gauntlets': { name: 'Titanium Gauntlets', emoji: '🥊', desc: 'Clothing (Gloves). Heavy protection weights. +6 power.', type: 'clothing', slot: 'gloves', goldValue: 160, levelMin: 20, rare: true },
+        'crown_royal': { name: 'Royal Crown', emoji: '👑', desc: 'Clothing (Head). Ultra Rare drop. Legendary +10 power!', type: 'clothing', slot: 'head', goldValue: 300, levelMin: 20, rare: true },
+        
+        // Wild Random Clothes Pool (1/100 Drop Chance)
+        'moss_cape': { name: 'Mossy Cape', emoji: '🧣', desc: 'Clothing (Shirt). Damp velvet foliage shielding. +3 power.', type: 'clothing', slot: 'shirt', goldValue: 80, levelMin: 1, rare: true },
+        'spiked_crown': { name: 'Spiked Crown', emoji: '👑', desc: 'Clothing (Head). Pointy wild defensive ring. +4 power.', type: 'clothing', slot: 'head', goldValue: 100, levelMin: 1, rare: true },
+        'thorn_bracers': { name: 'Thorn Bracers', emoji: '🥊', desc: 'Clothing (Gloves). Pointy natural forearm wraps. +3 power.', type: 'clothing', slot: 'gloves', goldValue: 75, levelMin: 1, rare: true },
+
+        // Rare Insects Compendium
+        'rare_firefly': { name: 'Golden Firefly', emoji: '🪱', desc: 'Glittering insect.', type: 'mat', goldValue: 12, levelMin: 1, rare: true },
+        'rare_beetle': { name: 'Ruby Beetle', emoji: '🐞', desc: 'Deep red gemstone beetle.', type: 'mat', goldValue: 15, levelMin: 1, rare: true },
+        'rare_dragonfly': { name: 'Sapphire Dragonfly', emoji: '🦋', desc: 'Reflects neon blue.', type: 'mat', goldValue: 20, levelMin: 10, rare: true },
+        'rare_mantis': { name: 'Jade Mantis', emoji: '🦗', desc: 'Prismatic green insect.', type: 'mat', goldValue: 25, levelMin: 10, rare: true },
+        'rare_spider': { name: 'Shadow Spider', emoji: '🕷️', desc: 'Furry arachnid.', type: 'mat', goldValue: 30, levelMin: 20, rare: true }
+    };
+
+    const rareBugsList = ['rare_firefly', 'rare_beetle', 'rare_dragonfly', 'rare_mantis', 'rare_spider'];
+    const dropClothesPool = ['moss_cape', 'spiked_crown', 'thorn_bracers'];
+
+    // Recipes explicitly gated by level thresholds
+    const recipes = [
+        { item1: 'leaf', item2: 'leaf', result: 'leaf_shirt', resultName: 'Foliage Vest 👕', levelMin: 1 },
+        { item1: 'leaf', item2: 'gardening_gloves', result: 'boots', resultName: 'Little Boots 🥾', levelMin: 1 },
+        
+        { item1: 'branch', item2: 'ember', result: 'torch', resultName: 'Bright Torch 🔦', levelMin: 10 },
+        { item1: 'boots', item2: 'ember', result: 'boots_heavy', resultName: 'Iron Spiked Boots 🥾', levelMin: 10 },
+        { item1: 'branch', item2: 'leaf', result: 'twig_pants', resultName: 'Twig Trousers 👖', levelMin: 10 },
+        
+        { item1: 'leaf_shirt', item2: 'moon_stone', result: 'shadow_cloak', resultName: 'Shadow Cloak 🧥', levelMin: 20 },
+        { item1: 'straw_hat', item2: 'moon_stone', result: 'wizard_hat', resultName: 'Wizard Pointy Hat 🧙', levelMin: 20 },
+        { item1: 'gardening_gloves', item2: 'moon_stone', result: 'titanium_gauntlets', resultName: 'Titanium Gauntlets 🥊', levelMin: 20 }
+    ];
+
+    const achievementsData = [
+        { key: 'click_10', type: 'clicks', goal: 10, title: 'First Forage Step', reward: 15 },
+        { key: 'click_50', type: 'clicks', goal: 50, title: 'Enthusiastic Nomad', reward: 40 },
+        { key: 'click_100', type: 'clicks', goal: 100, title: 'Forest Stalker', reward: 80 },
+        { key: 'lvl_5', type: 'level', goal: 5, title: 'Growing Spines', reward: 50 },
+        { key: 'lvl_15', type: 'level', goal: 15, title: 'Apex Hedgehog', reward: 200 }
+    ];
+
+    let selectedInventoryKey = null;
+    let selectedSlot1 = null;
+    let selectedSlot2 = null;
+
+    // --- DAY/NIGHT SKY ENVIRONMENT ENGINE (Sun Graphics Removed) ---
+    function processSkyClock() {
+        setInterval(() => {
+            timeTicks = (timeTicks + 1) % 40;
+
+            let fView = document.getElementById('forest-view');
+            let overlay = document.getElementById('night-overlay');
+            let txt = document.getElementById('lbl-time-txt');
+
+            if (timeTicks >= 0 && timeTicks < 10) {
+                currentPhase = 'Morning';
+                fView.style.background = "linear-gradient(to bottom, #ff9f43, #38aecc)";
+                overlay.style.opacity = "0.1";
+                txt.innerText = "Morning";
+            } else if (timeTicks >= 10 && timeTicks < 22) {
+                currentPhase = 'Day';
+                fView.style.background = "linear-gradient(to bottom, #78e08f, #38aecc)";
+                overlay.style.opacity = "0";
+                txt.innerText = "Day";
+            } else if (timeTicks >= 22 && timeTicks < 28) {
+                currentPhase = 'Evening';
+                fView.style.background = "linear-gradient(to bottom, #fda7df, #2c3e50)";
+                overlay.style.opacity = "0.2";
+                txt.innerText = "Evening";
+            } else {
+                currentPhase = 'Night';
+                fView.style.background = "linear-gradient(to bottom, #1e272e, #0a3d62)";
+                overlay.style.opacity = "0.65";
+                txt.innerText = "Night";
+            }
+            rebootWatchmanInterval();
+        }, 2000);
+    }
+
+    function spawnTreeCycle() {
+        let view = document.getElementById('forest-view');
+        setInterval(() => {
+            let tree = document.createElement('div');
+            tree.className = 'scrolling-tree';
+            tree.innerText = Math.random() > 0.5 ? '🌲' : '🌳';
+            view.appendChild(tree);
+            setTimeout(() => tree.remove(), 7000);
+        }, 2500);
+    }
+
+    function runGlobalClock() {
+        setInterval(() => {
+            let stateChanged = false;
+            for (let buffKey in player.activeBuffs) {
+                if (player.activeBuffs[buffKey] > 0) {
+                    player.activeBuffs[buffKey]--;
+                    stateChanged = true;
+                    if (player.activeBuffs[buffKey] <= 0) delete player.activeBuffs[buffKey];
+                }
+            }
+            if (stateChanged) updateUI();
+        }, 1000);
+    }
+
+    // --- CALCULATION OF BASELINE POWER ---
+    function getActionPower() {
+        let bonus = 1; 
+        if (player.clothing.head === 'straw_hat') bonus += 1;
+        if (player.clothing.head === 'wizard_hat') bonus += 5;
+        if (player.clothing.head === 'crown_royal') bonus += 10;
+        if (player.clothing.head === 'spiked_crown') bonus += 4;
+        if (player.clothing.feet === 'boots') bonus += 1;
+        if (player.clothing.feet === 'boots_heavy') bonus += 4;
+        if (player.clothing.shirt === 'leaf_shirt') bonus += 2;
+        if (player.clothing.shirt === 'shadow_cloak') bonus += 6;
+        if (player.clothing.shirt === 'moss_cape') bonus += 3;
+        if (player.clothing.pants === 'twig_pants') bonus += 2;
+        if (player.clothing.gloves === 'gardening_gloves') bonus += 1;
+        if (player.clothing.gloves === 'titanium_gauntlets') bonus += 6;
+        if (player.clothing.gloves === 'thorn_bracers') bonus += 3;
+        
+        for (let buffKey in player.activeBuffs) {
+            if (buffKey === 'torch') bonus += 2;
+        }
+        return bonus;
+    }
+
+    // --- FORAGING GENERATION PIPELINE ---
+    function forage(event) {
+        if (event) player.totalClicks++;
+        let power = getActionPower();
+
+        let xpGained = power;
+        let currencyGained = power;
+        let critRoll = Math.random();
+        
+        // Critical modifier slashed from 2x down to +33% bonus (3x less value)
+        if (player.purchasedManagers.mgr4 && critRoll < 0.043) {
+            xpGained = Math.floor(xpGained * 1.33);
+            currencyGained = Math.floor(currencyGained * 1.33);
+        }
+
+        let itemFoundKey = null;
+        let roll = Math.random() * 100;
+        
+        // 1/100 Custom Wild Apparel Drop Pool Trigger Check
+        if (event && Math.random() < 0.01) {
+            itemFoundKey = dropClothesPool[Math.floor(Math.random() * dropClothesPool.length)];
+            xpGained += 5;
+        } 
+        // All drops are 10x rarer (Divided thresholds by 10)
+        else if (roll < 0.8) { 
+            let eligibleBugs = rareBugsList.filter(bug => itemDetails[bug].levelMin <= player.level);
+            if (eligibleBugs.length > 0) {
+                itemFoundKey = eligibleBugs[Math.floor(Math.random() * eligibleBugs.length)];
+                xpGained += 15; currencyGained += 25;
+                if (!player.unlockedRareBugs.includes(itemFoundKey)) player.unlockedRareBugs.push(itemFoundKey);
+            }
+        } else if (roll < 0.9 && player.level >= 20) { 
+            itemFoundKey = 'crown_royal';
+            xpGained += 50;
+        } else if (currentPhase === 'Night' && roll < 2.2 && player.level >= 20) { 
+            itemFoundKey = 'moon_stone';
+            xpGained += 8;
+        } else if (roll < 4.5) {
+            itemFoundKey = 'bug_common';
+        } else if (roll < 6.0 && player.level >= 1) {
+            itemFoundKey = 'leaf';
+        } else if (roll < 7.2 && player.level >= 10) {
+            itemFoundKey = 'branch';
+        }
+
+        if (itemFoundKey) player.inventory[itemFoundKey] = (player.inventory[itemFoundKey] || 0) + 1;
+
+        player.currency += currencyGained;
+        gainXp(xpGained);
+
+        let spawnX, spawnY;
+        if (event) {
+            spawnX = event.clientX; spawnY = event.clientY;
+        } else {
+            let box = document.getElementById('forest-view').getBoundingClientRect();
+            spawnX = box.left + (box.width / 2) + (Math.random() * 40 - 20);
+            spawnY = box.top + (box.height / 2) + (Math.random() * 40 - 20);
+        }
+        createFloatingText(spawnX, spawnY, `+${xpGained} XP`);
+        
+        checkAchievements();
+        updateUI();
+    }
+
+    function gainXp(amount) {
+        player.xp += amount;
+        let oldLevel = player.level;
+        while (player.xp >= player.nextLevelXp) {
+            player.xp -= player.nextLevelXp;
+            player.level++;
+            player.nextLevelXp = Math.floor(10 * Math.pow(player.level, 1.5));
+        }
+        if (player.level !== oldLevel) {
+            let box = document.getElementById('forest-view').getBoundingClientRect();
+            createFloatingText(box.left + (box.width/2), box.top + 80, `🎉 LEVEL ${player.level} 🎉`, "#e74c3c");
+            renderRecipesList();
+            renderShopGoods();
+        }
+    }
+
+    // --- TRANSACTION ACTIONS ---
+    function selectBackpackItem(key) {
+        selectedInventoryKey = key;
+        let details = itemDetails[key];
+        
+        document.getElementById('item-action-card').style.display = 'block';
+        document.getElementById('card-item-name').innerText = `${details.emoji} ${details.name}`;
+        
+        let valueStr = `Sells for: ${details.goldValue} 🪙 each. `;
+        document.getElementById('card-item-desc').innerText = valueStr + details.desc;
+
+        let useBtn = document.getElementById('btn-use-item');
+        if (details.type === 'clothing') {
+            useBtn.style.display = 'inline-block';
+            useBtn.innerText = (player.clothing[details.slot] === key) ? "Unequip" : "Equip";
+        } else if (details.type === 'buff') {
+            useBtn.style.display = 'inline-block';
+            useBtn.innerText = "Activate";
+        } else {
+            useBtn.style.display = 'none';
+        }
+        updateUI();
+    }
+
+    function sellSelectedItem() {
+        if (!selectedInventoryKey) return;
+        if (player.inventory[selectedInventoryKey] > 0) {
+            player.inventory[selectedInventoryKey]--;
+            player.currency += itemDetails[selectedInventoryKey].goldValue;
+            if (player.inventory[selectedInventoryKey] <= 0) {
+                document.getElementById('item-action-card').style.display = 'none';
+                selectedInventoryKey = null;
+            }
+            updateUI();
+        }
+    }
+
+    function sellAllSelectedStack() {
+        if (!selectedInventoryKey) return;
+        let count = player.inventory[selectedInventoryKey] || 0;
+        if (count > 0) {
+            let totalGold = count * itemDetails[selectedInventoryKey].goldValue;
+            player.currency += totalGold;
+            player.inventory[selectedInventoryKey] = 0;
+            
+            let box = document.getElementById('forest-view').getBoundingClientRect();
+            createFloatingText(box.left + (box.width/2), box.top + 50, `+${totalGold} 🪙`, "#f1c40f");
+            
+            document.getElementById('item-action-card').style.display = 'none';
+            selectedInventoryKey = null;
+            updateUI();
+        }
+    }
+
+    function useSelectedItem() {
+        if (!selectedInventoryKey) return;
+        let details = itemDetails[selectedInventoryKey];
+
+        if (details.type === 'clothing') {
+            if (player.clothing[details.slot] === selectedInventoryKey) {
+                player.clothing[details.slot] = null;
+            } else {
+                player.clothing[details.slot] = selectedInventoryKey;
+            }
+        } else if (details.type === 'buff') {
+            if (player.inventory[selectedInventoryKey] > 0) {
+                player.inventory[selectedInventoryKey]--;
+                player.activeBuffs[selectedInventoryKey] = 60;
+            }
+        }
+        selectBackpackItem(selectedInventoryKey);
+        updateUI();
+    }
+
+    // --- REFRESH RENDERING (SHOP COSTS INFLATED TO 12x) ---
+    function renderShopGoods() {
+        let shopContainer = document.getElementById('shop-dynamic-goods');
+        shopContainer.innerHTML = '';
+        
+        let customBuyItems = ['straw_hat', 'boots', 'gardening_gloves', 'torch', 'branch', 'ember'];
+        
+        customBuyItems.forEach(itemKey => {
+            let d = itemDetails[itemKey];
+            let row = document.createElement('div');
+            row.className = 'shop-item';
+            
+            // Inflated calculation multiplier from 4x to 12x
+            let expensiveCost = d.goldValue * 12;
+            
+            if (player.level >= d.levelMin) {
+                row.innerHTML = `<span>${d.emoji} ${d.name}</span><button onclick="buyItem('${itemKey}', ${expensiveCost})">Buy: ${expensiveCost} 🪙</button>`;
+            } else {
+                row.innerHTML = `<span style="color:#718093;">❓ Gated Good</span><span class="level-gate-badge">Lvl ${d.levelMin}+</span>`;
+            }
+            shopContainer.appendChild(row);
+        });
+    }
+
+    function renderRecipesList() {
+        let list = document.getElementById('recipes-list');
+        list.innerHTML = '';
+        recipes.forEach(r => {
+            let row = document.createElement('div');
+            row.className = 'recipe-item';
+            if (player.level >= r.levelMin) {
+                row.innerHTML = `<span>${itemDetails[r.item1].emoji} + ${itemDetails[r.item2].emoji}</span> ➡️ <span>${r.resultName}</span>`;
+            } else {
+                row.innerHTML = `<span style="color:#718093;">🔒 Locked Formula Blueprint</span><span class="level-gate-badge">Lvl ${r.levelMin}+</span>`;
+            }
+            list.appendChild(row);
+        });
+    }
+
+    function attemptMerge() {
+        if (!selectedSlot1 || !selectedSlot2) return;
+        let match = recipes.find(r => 
+            ((r.item1 === selectedSlot1 && r.item2 === selectedSlot2) ||
+            (r.item1 === selectedSlot2 && r.item2 === selectedSlot1)) &&
+            player.level >= r.levelMin
+        );
+
+        if (match) {
+            player.inventory[selectedSlot1]--;
+            player.inventory[selectedSlot2]--;
+            player.inventory[match.result]++;
+            selectedSlot1 = null;
+            selectedSlot2 = null;
+        } else {
+            let box = document.getElementById('forest-view').getBoundingClientRect();
+            createFloatingText(box.left + (box.width/2), box.top + 80, "❌ Failed Complex Combination", "#e74c3c");
+        }
+        updateUI();
+    }
+
+    // --- UI GRAPHICS PIPELINE RENDERING (RARE ITEMS OUTLINED IN BLUE) ---
+    function updateUI() {
+        document.getElementById('lbl-level').innerText = player.level;
+        document.getElementById('lbl-xp').innerText = player.xp;
+        document.getElementById('lbl-next-xp').innerText = player.nextLevelXp;
+        document.getElementById('lbl-currency').innerText = player.currency;
+        document.getElementById('lbl-clicks').innerText = player.totalClicks;
+        document.getElementById('xp-bar').style.width = `${(player.xp / player.nextLevelXp) * 100}%`;
+
+        renderPaperdollSlot('head', 'head');
+        renderPaperdollSlot('shirt', 'shirt');
+        renderPaperdollSlot('gloves', 'gloves');
+        renderPaperdollSlot('pants', 'pants');
+        renderPaperdollSlot('feet', 'feet');
+
+        let buffTicker = document.getElementById('active-buffs-ticker');
+        buffTicker.innerHTML = '';
+        for (let buffKey in player.activeBuffs) {
+            let itemBadge = document.createElement('div');
+            itemBadge.className = 'buff-badge';
+            itemBadge.innerText = `${itemDetails[buffKey].emoji} ${player.activeBuffs[buffKey]}s`;
+            buffTicker.appendChild(itemBadge);
+        }
+
+        let invGrid = document.getElementById('inventory-grid');
+        invGrid.innerHTML = '';
+        for (let key in player.inventory) {
+            let count = player.inventory[key];
+            if (count > 0) {
+                let cell = document.createElement('div');
+                let isRare = itemDetails[key].rare;
+                cell.className = `grid-item ${isRare ? 'rare-quality' : ''} ${selectedInventoryKey === key ? 'selected' : ''}`;
+                cell.innerHTML = `${itemDetails[key].emoji} <span class="item-count">${count}</span>`;
+                cell.onclick = () => selectBackpackItem(key);
+                invGrid.appendChild(cell);
+            }
+        }
+
+        document.getElementById('slot-1').innerText = selectedSlot1 ? itemDetails[selectedSlot1].emoji : '❓';
+        document.getElementById('slot-2').innerText = selectedSlot2 ? itemDetails[selectedSlot2].emoji : '❓';
+
+        updateManagerRow(1, 10, 30);
+        updateManagerRow(2, 50, 100);
+        updateManagerRow(3, 500, 500);
+        updateManagerRow(4, 150, 350);
+        updateManagerRow(5, 300, 600);
+
+        renderCompendiumUI();
+        renderAchievementsUI();
+
+        localStorage.setItem('hedgehog_rpg_hardcore_save_v1', JSON.stringify(player));
+    }
+
+    function renderPaperdollSlot(slotKey, elementIdExtension) {
+        let activeEquipKey = player.clothing[slotKey];
+        let cell = document.getElementById(`p-slot-${elementIdExtension}`);
+        let iconSpan = document.getElementById(`p-icon-${elementIdExtension}`);
+        
+        if (activeEquipKey) {
+            cell.className = "paperdoll-slot equipped";
+            iconSpan.innerText = itemDetails[activeEquipKey].emoji;
+        } else {
+            cell.className = "paperdoll-slot";
+            iconSpan.innerText = "";
+        }
+    }
+
+    // --- OTHER CORE INFRASTRUCTURE UTILS ---
+    let autoIntervals = { mgr1: null, mgr2: null, mgr3: null, mgr4: null, mgr5: null };
+    let activeWatchmanSpeed = null;
+
+    function checkActiveManagers() {
+        if (player.purchasedManagers.mgr1 && !autoIntervals.mgr1) autoIntervals.mgr1 = setInterval(() => { forage(null); }, 3000);
+        if (player.purchasedManagers.mgr2 && !autoIntervals.mgr2) autoIntervals.mgr2 = setInterval(() => { forage(null); }, 1500);
+        if (player.purchasedManagers.mgr3 && !autoIntervals.mgr3) autoIntervals.mgr3 = setInterval(() => { forage(null); }, 600);
+        if (player.purchasedManagers.mgr4 && !autoIntervals.mgr4) autoIntervals.mgr4 = setInterval(() => { forage(null); }, 2000);
+        rebootWatchmanInterval();
+    }
+
+    function rebootWatchmanInterval() {
+        if (!player.purchasedManagers.mgr5) return;
+        let targetSpeed = (currentPhase === 'Night') ? 1500 : 3000;
+        if (activeWatchmanSpeed !== targetSpeed) {
+            if (autoIntervals.mgr5) clearInterval(autoIntervals.mgr5);
+            activeWatchmanSpeed = targetSpeed;
+            autoIntervals.mgr5 = setInterval(() => { forage(null); }, targetSpeed);
+        }
+    }
+
+    function buyManager(num, cost) {
+        let key = 'mgr' + num;
+        if (player.currency >= cost && !player.purchasedManagers[key]) {
+            player.currency -= cost;
+            player.purchasedManagers[key] = true;
+            checkActiveManagers();
+            checkAchievements();
+            updateUI();
+        }
+    }
+
+    function updateManagerRow(num, clickGoal, cost) {
+        let btn = document.getElementById(`btn-mgr-${num}`);
+        let key = 'mgr' + num;
+        if (player.purchasedManagers[key]) {
+            btn.innerText = "Purchased"; btn.disabled = true;
+        } else if (player.totalClicks >= clickGoal) {
+            btn.innerText = `Buy: ${cost} 🪙`; btn.disabled = player.currency < cost;
+        } else {
+            btn.innerText = "Locked"; btn.disabled = true;
+        }
+    }
+
+    function stageItemForMerge() {
+        if (!selectedInventoryKey) return;
+        let availableCount = player.inventory[selectedInventoryKey];
+        if (selectedSlot1 === selectedInventoryKey) availableCount--;
+        if (selectedSlot2 === selectedInventoryKey) availableCount--;
+        if (availableCount <= 0) return;
+        if (!selectedSlot1) selectedSlot1 = selectedInventoryKey;
+        else if (!selectedSlot2) selectedSlot2 = selectedInventoryKey;
+        else selectedSlot1 = selectedInventoryKey;
+        updateUI();
+    }
+
+    function clearSlot(slotNum) {
+        if (slotNum === 1) selectedSlot1 = null;
+        if (slotNum === 2) selectedSlot2 = null;
+        updateUI();
+    }
+
+    function buyItem(itemKey, cost) {
+        if (player.currency >= cost) {
+            player.currency -= cost;
+            player.inventory[itemKey]++;
+            checkAchievements();
+            updateUI();
+        }
+    }
+
+    function checkAchievements() {
+        achievementsData.forEach(ach => {
+            if (player.unlockedAchievements.includes(ach.key)) return;
+            let conditionMet = false;
+            if (ach.type === 'clicks' && player.totalClicks >= ach.goal) conditionMet = true;
+            if (ach.type === 'level' && player.level >= ach.goal) conditionMet = true;
+            if (conditionMet) {
+                player.unlockedAchievements.push(ach.key);
+                player.currency += ach.reward;
+            }
+        });
+    }
+
+    function renderCompendiumUI() {
+        let compContainer = document.getElementById('compendium-container');
+        compContainer.innerHTML = '';
+        rareBugsList.forEach(bugKey => {
+            let d = itemDetails[bugKey];
+            let cell = document.createElement('div');
+            let found = player.unlockedRareBugs.includes(bugKey);
+            if (found) {
+                cell.className = 'compendium-cell rare-quality';
+                cell.innerHTML = `<div style="font-size:20px;">${d.emoji}</div><strong>${d.name}</strong>`;
+            } else {
+                cell.className = 'compendium-cell locked';
+                cell.innerHTML = `<div style="font-size:20px;">❓</div><strong>Unknown</strong>`;
+            }
+            compContainer.appendChild(cell);
+        });
+    }
+
+    function renderAchievementsUI() {
+        let achList = document.getElementById('achievements-list');
+        achList.innerHTML = '';
+        achievementsData.forEach(ach => {
+            let row = document.createElement('div');
+            let completed = player.unlockedAchievements.includes(ach.key);
+            row.className = `achievement-item`;
+            row.style.borderLeft = completed ? "4px solid #e74c3c" : "4px solid #718093";
+            row.innerHTML = `<div><strong>${ach.title}</strong></div><span style="color:#f1c40f;">${completed ? 'Done' : '+' + ach.reward + ' 🪙'}</span>`;
+            achList.appendChild(row);
+        });
+    }
+
+    function createFloatingText(x, y, text, customColor) {
+        let container = document.getElementById('forest-view');
+        let rect = container.getBoundingClientRect();
+        let el = document.createElement('div');
+        el.className = 'floating-text';
+        el.style.left = `${x - rect.left}px`;
+        el.style.top = `${y - rect.top}px`;
+        if (customColor) el.style.color = customColor;
+        el.innerText = text;
+        container.appendChild(el);
+        setTimeout(() => el.remove(), 1200);
+    }
+
+    function switchTab(tabId, btnElement) {
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(`panel-${tabId}`).classList.add('active');
+        btnElement.classList.add('active');
+    }
+
+    // --- SYSTEM INITIALIZATION RUN ---
+    window.onload = function() {
+        spawnTreeCycle();
+        runGlobalClock();
+        processSkyClock();
+        
+        let savedData = localStorage.getItem('hedgehog_rpg_hardcore_save_v1');
+        if (savedData) {
+            let parsed = JSON.parse(savedData);
+            if (parsed.inventory) player = parsed;
+        }
+        renderRecipesList();
+        renderShopGoods();
+        checkActiveManagers();
+        updateUI();
+    };
+</script>
+
+</body>
+</html>
